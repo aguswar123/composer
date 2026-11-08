@@ -6,11 +6,11 @@ on:
       patch:
         description: Patch file name (in the repo root)
         required: true
-        default: 0002-android-lyrics-editor-ttml.patch
+        default: 0003-android-tap-sync-and-save.patch
       message:
         description: Commit message
         required: true
-        default: "Android: lyrics model, TTML writer and parser, LRC and TXT import, Edit tab"
+        default: "Android: tap-to-sync (line and word), undo, save and share TTML"
 
 permissions:
   contents: write
