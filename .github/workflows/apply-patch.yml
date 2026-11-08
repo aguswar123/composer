@@ -1,0 +1,41 @@
+name: Apply patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      patch:
+        description: Patch file name (in the repo root)
+        required: true
+        default: 0001-android-skeleton-and-audio-playback.patch
+      message:
+        description: Commit message
+        required: true
+        default: "Add native Android app (Kotlin/Compose) with audio import and playback"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      # A patch that touches .github/workflows needs a PAT with the `workflow` scope
+      # stored as the PUSH_TOKEN secret. Without it, the default token is used.
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PUSH_TOKEN || github.token }}
+
+      - name: Apply patch, remove it, commit and push
+        env:
+          PATCH: ${{ inputs.patch }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          set -euo pipefail
+          test -f "$PATCH" || { echo "::error::$PATCH not found in repo root"; exit 1; }
+          git apply --check "$PATCH"
+          git apply --index "$PATCH"
+          git rm -q -f -- "$PATCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "$MESSAGE"
+          git push
