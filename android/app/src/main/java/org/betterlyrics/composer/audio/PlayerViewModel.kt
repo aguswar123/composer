@@ -70,7 +70,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         val app = getApplication<Application>()
         try {
             app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (_: SecurityException) {
+        } catch (e: SecurityException) {
             // Provider doesn't offer persistable grants; the grant lasts for this session.
         }
         player.setMediaItem(MediaItem.fromUri(uri))
@@ -94,7 +94,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
             mmr.setDataSource(app, uri)
             title = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
             artist = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
         } finally {
             mmr.release()
         }

@@ -31,18 +31,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.betterlyrics.composer.audio.PlayerViewModel
+import org.betterlyrics.composer.project.ProjectViewModel
 
 /** The four steps of the Composer workflow. */
 enum class Step(val label: String, val icon: ImageVector, val todo: String) {
     Import("Import", Icons.Default.AudioFile, ""),
-    Edit("Edit", Icons.Default.Edit, "Paste or import lyrics (.txt, .lrc, .srt, .ttml, .qrc), assign singers."),
+    Edit("Edit", Icons.Default.Edit, ""),
     Sync("Sync", Icons.Default.Timer, "Tap along with the music to stamp each word."),
-    Export("Export", Icons.Default.Share, "Export TTML and share it.")
+    Export("Export", Icons.Default.Share, "")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ComposerApp(player: PlayerViewModel = viewModel()) {
+fun ComposerApp(player: PlayerViewModel = viewModel(), project: ProjectViewModel = viewModel()) {
     var step by remember { mutableStateOf(Step.Import) }
     Scaffold(
         topBar = { TopAppBar(title = { Text("Composer") }) },
@@ -59,10 +60,13 @@ fun ComposerApp(player: PlayerViewModel = viewModel()) {
             }
         }
     ) { padding ->
-        if (step == Step.Import) {
-            ImportScreen(player, Modifier.padding(padding))
-        } else {
-            Placeholder(step, Modifier.padding(padding))
+        val body = Modifier.padding(padding)
+        val durationSec = player.durationMs / 1000.0
+        when (step) {
+            Step.Import -> ImportScreen(player, body)
+            Step.Edit -> EditScreen(project, durationSec, body)
+            Step.Export -> ExportScreen(project, durationSec, body)
+            Step.Sync -> Placeholder(step, body)
         }
     }
 }
