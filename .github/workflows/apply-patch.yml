@@ -6,11 +6,11 @@ on:
       patch:
         description: Patch file name (in the repo root)
         required: true
-        default: 0001-android-skeleton-and-audio-playback.patch
+        default: 0002-android-lyrics-editor-ttml.patch
       message:
         description: Commit message
         required: true
-        default: "Add native Android app (Kotlin/Compose) with audio import and playback"
+        default: "Android: lyrics model, TTML writer and parser, LRC and TXT import, Edit tab"
 
 permissions:
   contents: write
@@ -19,8 +19,6 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     steps:
-      # A patch that touches .github/workflows needs a PAT with the `workflow` scope
-      # stored as the PUSH_TOKEN secret. Without it, the default token is used.
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.PUSH_TOKEN || github.token }}
