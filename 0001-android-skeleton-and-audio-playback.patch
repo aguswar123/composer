@@ -1,0 +1,669 @@
+diff --git a/.github/workflows/android.yml b/.github/workflows/android.yml
+new file mode 100644
+index 0000000..ce2892b
+--- /dev/null
++++ b/.github/workflows/android.yml
+@@ -0,0 +1,42 @@
++name: Android APK
++
++on:
++  push:
++    branches: [master, main]
++    paths: ["android/**", ".github/workflows/android.yml"]
++  pull_request:
++    paths: ["android/**", ".github/workflows/android.yml"]
++  workflow_dispatch:
++
++permissions:
++  contents: read
++
++jobs:
++  build:
++    runs-on: ubuntu-latest
++    defaults:
++      run:
++        working-directory: android
++    steps:
++      - uses: actions/checkout@v4
++
++      - uses: actions/setup-java@v4
++        with:
++          distribution: temurin
++          java-version: "17"
++
++      - uses: android-actions/setup-android@v3
++
++      - uses: gradle/actions/setup-gradle@v4
++        with:
++          gradle-version: "8.9"
++
++      - name: Build debug APK
++        run: gradle --no-daemon assembleDebug
++
++      - name: Upload APK
++        uses: actions/upload-artifact@v4
++        with:
++          name: composer-debug-apk
++          path: android/app/build/outputs/apk/debug/*.apk
++          if-no-files-found: error
+diff --git a/android/README.md b/android/README.md
+new file mode 100644
+index 0000000..4f6941f
+--- /dev/null
++++ b/android/README.md
+@@ -0,0 +1,15 @@
++# Composer for Android (native, Kotlin)
++
++Jetpack Compose skeleton for a native port of Better Lyrics Composer.
++The web app in the repo root is untouched.
++
++## Build locally
++Needs JDK 17 and the Android SDK, then: `gradle assembleDebug` (or open `android/` in Android Studio).
++APK: `app/build/outputs/apk/debug/app-debug.apk`
++
++## Build on GitHub
++Push to `master`/`main` (or run Actions -> Android APK -> Run workflow).
++Download the APK from the run's Artifacts section.
++
++## Status
++- Phase 1 (done): audio import via the system file picker, Media3/ExoPlayer playback, seek bar, ±5 s skip.
+diff --git a/android/app/build.gradle.kts b/android/app/build.gradle.kts
+new file mode 100644
+index 0000000..7b90191
+--- /dev/null
++++ b/android/app/build.gradle.kts
+@@ -0,0 +1,49 @@
++plugins {
++    id("com.android.application")
++    id("org.jetbrains.kotlin.android")
++    id("org.jetbrains.kotlin.plugin.compose")
++}
++
++android {
++    namespace = "org.betterlyrics.composer"
++    compileSdk = 35
++
++    defaultConfig {
++        applicationId = "org.betterlyrics.composer"
++        minSdk = 26
++        targetSdk = 35
++        versionCode = 2
++        versionName = "0.2.0"
++    }
++
++    buildTypes {
++        release {
++            isMinifyEnabled = true
++            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
++        }
++    }
++
++    compileOptions {
++        sourceCompatibility = JavaVersion.VERSION_17
++        targetCompatibility = JavaVersion.VERSION_17
++    }
++    kotlinOptions { jvmTarget = "17" }
++
++    buildFeatures { compose = true }
++}
++
++dependencies {
++    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
++    implementation(composeBom)
++    implementation("androidx.core:core-ktx:1.15.0")
++    implementation("androidx.activity:activity-compose:1.9.3")
++    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
++    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
++    implementation("androidx.media3:media3-exoplayer:1.5.0")
++    implementation("androidx.media3:media3-common:1.5.0")
++    implementation("androidx.compose.ui:ui")
++    implementation("androidx.compose.ui:ui-tooling-preview")
++    implementation("androidx.compose.material3:material3")
++    implementation("androidx.compose.material:material-icons-extended")
++    debugImplementation("androidx.compose.ui:ui-tooling")
++}
+diff --git a/android/app/proguard-rules.pro b/android/app/proguard-rules.pro
+new file mode 100644
+index 0000000..c355938
+--- /dev/null
++++ b/android/app/proguard-rules.pro
+@@ -0,0 +1 @@
++-keep class org.betterlyrics.composer.** { *; }
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+new file mode 100644
+index 0000000..4083caf
+--- /dev/null
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -0,0 +1,20 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
++
++    <application
++        android:allowBackup="true"
++        android:icon="@mipmap/ic_launcher"
++        android:roundIcon="@mipmap/ic_launcher"
++        android:label="@string/app_name"
++        android:supportsRtl="true"
++        android:theme="@style/Theme.Composer">
++        <activity
++            android:name=".MainActivity"
++            android:exported="true">
++            <intent-filter>
++                <action android:name="android.intent.action.MAIN" />
++                <category android:name="android.intent.category.LAUNCHER" />
++            </intent-filter>
++        </activity>
++    </application>
++</manifest>
+diff --git a/android/app/src/main/java/org/betterlyrics/composer/MainActivity.kt b/android/app/src/main/java/org/betterlyrics/composer/MainActivity.kt
+new file mode 100644
+index 0000000..ff04f91
+--- /dev/null
++++ b/android/app/src/main/java/org/betterlyrics/composer/MainActivity.kt
+@@ -0,0 +1,20 @@
++package org.betterlyrics.composer
++
++import android.os.Bundle
++import androidx.activity.ComponentActivity
++import androidx.activity.compose.setContent
++import androidx.activity.enableEdgeToEdge
++import org.betterlyrics.composer.ui.ComposerApp
++import org.betterlyrics.composer.ui.theme.ComposerTheme
++
++class MainActivity : ComponentActivity() {
++    override fun onCreate(savedInstanceState: Bundle?) {
++        super.onCreate(savedInstanceState)
++        enableEdgeToEdge()
++        setContent {
++            ComposerTheme {
++                ComposerApp()
++            }
++        }
++    }
++}
+diff --git a/android/app/src/main/java/org/betterlyrics/composer/audio/PlayerViewModel.kt b/android/app/src/main/java/org/betterlyrics/composer/audio/PlayerViewModel.kt
+new file mode 100644
+index 0000000..6900a96
+--- /dev/null
++++ b/android/app/src/main/java/org/betterlyrics/composer/audio/PlayerViewModel.kt
+@@ -0,0 +1,122 @@
++package org.betterlyrics.composer.audio
++
++import android.app.Application
++import android.content.Intent
++import android.media.MediaMetadataRetriever
++import android.net.Uri
++import android.provider.OpenableColumns
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableLongStateOf
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.setValue
++import androidx.lifecycle.AndroidViewModel
++import androidx.lifecycle.viewModelScope
++import androidx.media3.common.AudioAttributes
++import androidx.media3.common.C
++import androidx.media3.common.MediaItem
++import androidx.media3.common.PlaybackException
++import androidx.media3.common.Player
++import androidx.media3.exoplayer.ExoPlayer
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.withContext
++
++/** Owns the ExoPlayer and exposes Compose-observable playback state. Main thread only. */
++class PlayerViewModel(app: Application) : AndroidViewModel(app) {
++
++    private val player: ExoPlayer = ExoPlayer.Builder(app).build().apply {
++        setAudioAttributes(
++            AudioAttributes.Builder()
++                .setUsage(C.USAGE_MEDIA)
++                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
++                .build(),
++            /* handleAudioFocus = */ true,
++        )
++    }
++
++    var track by mutableStateOf<Track?>(null); private set
++    var isPlaying by mutableStateOf(false); private set
++    var positionMs by mutableLongStateOf(0L); private set
++    var durationMs by mutableLongStateOf(0L); private set
++    var error by mutableStateOf<String?>(null); private set
++
++    init {
++        player.addListener(object : Player.Listener {
++            override fun onIsPlayingChanged(isPlaying: Boolean) {
++                this@PlayerViewModel.isPlaying = isPlaying
++            }
++
++            override fun onPlaybackStateChanged(state: Int) {
++                if (state == Player.STATE_READY) durationMs = player.duration.coerceAtLeast(0)
++                if (state == Player.STATE_ENDED) positionMs = player.duration.coerceAtLeast(0)
++            }
++
++            override fun onPlayerError(e: PlaybackException) {
++                error = e.message ?: "Could not play this file"
++            }
++        })
++        // Position ticker: ~60 fps while playing, drives the readout and the seek bar.
++        viewModelScope.launch {
++            while (true) {
++                if (player.isPlaying) positionMs = player.currentPosition
++                delay(16)
++            }
++        }
++    }
++
++    fun load(uri: Uri) {
++        error = null
++        val app = getApplication<Application>()
++        try {
++            app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
++        } catch (_: SecurityException) {
++            // Provider doesn't offer persistable grants; the grant lasts for this session.
++        }
++        player.setMediaItem(MediaItem.fromUri(uri))
++        player.prepare()
++        positionMs = 0
++        durationMs = 0
++        viewModelScope.launch {
++            track = withContext(Dispatchers.IO) { readTrack(app, uri) }
++        }
++    }
++
++    private fun readTrack(app: Application, uri: Uri): Track {
++        var name = uri.lastPathSegment ?: "audio"
++        app.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
++            if (it.moveToFirst()) it.getString(0)?.let { n -> name = n }
++        }
++        var title: String? = null
++        var artist: String? = null
++        val mmr = MediaMetadataRetriever()
++        try {
++            mmr.setDataSource(app, uri)
++            title = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
++            artist = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
++        } catch (_: Exception) {
++        } finally {
++            mmr.release()
++        }
++        return Track(uri, name, title, artist)
++    }
++
++    fun togglePlay() {
++        if (player.playbackState == Player.STATE_ENDED) player.seekTo(0)
++        if (player.isPlaying) player.pause() else player.play()
++    }
++
++    fun seekTo(ms: Long) {
++        val target = ms.coerceIn(0, durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE)
++        player.seekTo(target)
++        positionMs = target
++    }
++
++    fun skip(deltaMs: Long) = seekTo(player.currentPosition + deltaMs)
++
++    fun pause() = player.pause()
++
++    override fun onCleared() {
++        player.release()
++    }
++}
+diff --git a/android/app/src/main/java/org/betterlyrics/composer/audio/Track.kt b/android/app/src/main/java/org/betterlyrics/composer/audio/Track.kt
+new file mode 100644
+index 0000000..d6a5b30
+--- /dev/null
++++ b/android/app/src/main/java/org/betterlyrics/composer/audio/Track.kt
+@@ -0,0 +1,20 @@
++package org.betterlyrics.composer.audio
++
++import android.net.Uri
++
++data class Track(
++    val uri: Uri,
++    val fileName: String,
++    val title: String?,
++    val artist: String?,
++) {
++    val displayTitle: String get() = title?.takeIf { it.isNotBlank() } ?: fileName
++}
++
++fun formatTime(ms: Long): String {
++    val totalCs = (ms.coerceAtLeast(0) / 10)
++    val cs = totalCs % 100
++    val s = (totalCs / 100) % 60
++    val m = totalCs / 6000
++    return "%d:%02d.%02d".format(m, s, cs)
++}
+diff --git a/android/app/src/main/java/org/betterlyrics/composer/ui/ComposerApp.kt b/android/app/src/main/java/org/betterlyrics/composer/ui/ComposerApp.kt
+new file mode 100644
+index 0000000..9b4b204
+--- /dev/null
++++ b/android/app/src/main/java/org/betterlyrics/composer/ui/ComposerApp.kt
+@@ -0,0 +1,83 @@
++package org.betterlyrics.composer.ui
++
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.filled.AudioFile
++import androidx.compose.material.icons.filled.Edit
++import androidx.compose.material.icons.filled.Share
++import androidx.compose.material.icons.filled.Timer
++import androidx.compose.material3.ExperimentalMaterial3Api
++import androidx.compose.material3.Icon
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.NavigationBar
++import androidx.compose.material3.NavigationBarItem
++import androidx.compose.material3.Scaffold
++import androidx.compose.material3.Text
++import androidx.compose.material3.TopAppBar
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.setValue
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.vector.ImageVector
++import androidx.compose.ui.unit.dp
++import androidx.lifecycle.viewmodel.compose.viewModel
++import org.betterlyrics.composer.audio.PlayerViewModel
++
++/** The four steps of the Composer workflow. */
++enum class Step(val label: String, val icon: ImageVector, val todo: String) {
++    Import("Import", Icons.Default.AudioFile, ""),
++    Edit("Edit", Icons.Default.Edit, "Paste or import lyrics (.txt, .lrc, .srt, .ttml, .qrc), assign singers."),
++    Sync("Sync", Icons.Default.Timer, "Tap along with the music to stamp each word."),
++    Export("Export", Icons.Default.Share, "Export TTML and share it.")
++}
++
++@OptIn(ExperimentalMaterial3Api::class)
++@Composable
++fun ComposerApp(player: PlayerViewModel = viewModel()) {
++    var step by remember { mutableStateOf(Step.Import) }
++    Scaffold(
++        topBar = { TopAppBar(title = { Text("Composer") }) },
++        bottomBar = {
++            NavigationBar {
++                Step.entries.forEach {
++                    NavigationBarItem(
++                        selected = it == step,
++                        onClick = { step = it },
++                        icon = { Icon(it.icon, contentDescription = it.label) },
++                        label = { Text(it.label) }
++                    )
++                }
++            }
++        }
++    ) { padding ->
++        if (step == Step.Import) {
++            ImportScreen(player, Modifier.padding(padding))
++        } else {
++            Placeholder(step, Modifier.padding(padding))
++        }
++    }
++}
++
++@Composable
++private fun Placeholder(step: Step, modifier: Modifier = Modifier) {
++    Column(
++        modifier.fillMaxSize().padding(24.dp),
++        verticalArrangement = Arrangement.Center,
++        horizontalAlignment = Alignment.CenterHorizontally
++    ) {
++        Icon(step.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp))
++        Spacer(Modifier.height(16.dp))
++        Text(step.label, style = MaterialTheme.typography.headlineSmall)
++        Spacer(Modifier.height(8.dp))
++        Text("Coming soon: ${step.todo}", style = MaterialTheme.typography.bodyMedium)
++    }
++}
+diff --git a/android/app/src/main/java/org/betterlyrics/composer/ui/ImportScreen.kt b/android/app/src/main/java/org/betterlyrics/composer/ui/ImportScreen.kt
+new file mode 100644
+index 0000000..58f0296
+--- /dev/null
++++ b/android/app/src/main/java/org/betterlyrics/composer/ui/ImportScreen.kt
+@@ -0,0 +1,113 @@
++package org.betterlyrics.composer.ui
++
++import androidx.activity.compose.rememberLauncherForActivityResult
++import androidx.activity.result.contract.ActivityResultContracts
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.filled.AudioFile
++import androidx.compose.material.icons.filled.Forward5
++import androidx.compose.material.icons.filled.Pause
++import androidx.compose.material.icons.filled.PlayArrow
++import androidx.compose.material.icons.filled.Replay5
++import androidx.compose.material3.Button
++import androidx.compose.material3.FilledIconButton
++import androidx.compose.material3.Icon
++import androidx.compose.material3.IconButton
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.OutlinedButton
++import androidx.compose.material3.Slider
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.setValue
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.text.style.TextOverflow
++import androidx.compose.ui.unit.dp
++import org.betterlyrics.composer.audio.PlayerViewModel
++import org.betterlyrics.composer.audio.formatTime
++
++@Composable
++fun ImportScreen(vm: PlayerViewModel, modifier: Modifier = Modifier) {
++    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
++        if (uri != null) vm.load(uri)
++    }
++    val pick = { picker.launch(arrayOf("audio/*")) }
++    val track = vm.track
++
++    Column(
++        modifier.fillMaxSize().padding(24.dp),
++        verticalArrangement = Arrangement.Center,
++        horizontalAlignment = Alignment.CenterHorizontally,
++    ) {
++        Icon(
++            Icons.Default.AudioFile, contentDescription = null,
++            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp),
++        )
++        Spacer(Modifier.height(16.dp))
++
++        if (track == null) {
++            Text("Import a song", style = MaterialTheme.typography.headlineSmall)
++            Spacer(Modifier.height(8.dp))
++            Text("MP3, WAV, M4A, OGG or FLAC", style = MaterialTheme.typography.bodyMedium)
++            Spacer(Modifier.height(24.dp))
++            Button(onClick = pick) { Text("Choose audio file") }
++        } else {
++            Text(
++                track.displayTitle, style = MaterialTheme.typography.titleLarge,
++                maxLines = 2, overflow = TextOverflow.Ellipsis,
++            )
++            track.artist?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
++            Spacer(Modifier.height(24.dp))
++            PlayerControls(vm)
++            Spacer(Modifier.height(16.dp))
++            OutlinedButton(onClick = pick) { Text("Change file") }
++        }
++
++        vm.error?.let {
++            Spacer(Modifier.height(16.dp))
++            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
++        }
++    }
++}
++
++@Composable
++private fun PlayerControls(vm: PlayerViewModel) {
++    var dragging by remember { mutableStateOf(false) }
++    var dragValue by remember { mutableStateOf(0f) }
++    val duration = vm.durationMs.coerceAtLeast(1)
++    val shownMs = if (dragging) (dragValue * duration).toLong() else vm.positionMs
++
++    Slider(
++        value = if (dragging) dragValue else (vm.positionMs.toFloat() / duration).coerceIn(0f, 1f),
++        onValueChange = { dragging = true; dragValue = it },
++        onValueChangeFinished = { vm.seekTo((dragValue * duration).toLong()); dragging = false },
++        modifier = Modifier.fillMaxWidth(),
++    )
++    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
++        Text(formatTime(shownMs), style = MaterialTheme.typography.labelMedium)
++        Text(formatTime(vm.durationMs), style = MaterialTheme.typography.labelMedium)
++    }
++    Spacer(Modifier.height(8.dp))
++    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
++        IconButton(onClick = { vm.skip(-5_000) }) { Icon(Icons.Default.Replay5, "Back 5 seconds") }
++        FilledIconButton(onClick = vm::togglePlay, modifier = Modifier.size(64.dp)) {
++            Icon(
++                if (vm.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
++                contentDescription = if (vm.isPlaying) "Pause" else "Play",
++                modifier = Modifier.size(32.dp),
++            )
++        }
++        IconButton(onClick = { vm.skip(5_000) }) { Icon(Icons.Default.Forward5, "Forward 5 seconds") }
++    }
++}
+diff --git a/android/app/src/main/java/org/betterlyrics/composer/ui/theme/Theme.kt b/android/app/src/main/java/org/betterlyrics/composer/ui/theme/Theme.kt
+new file mode 100644
+index 0000000..4df8278
+--- /dev/null
++++ b/android/app/src/main/java/org/betterlyrics/composer/ui/theme/Theme.kt
+@@ -0,0 +1,18 @@
++package org.betterlyrics.composer.ui.theme
++
++import androidx.compose.foundation.isSystemInDarkTheme
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.darkColorScheme
++import androidx.compose.material3.lightColorScheme
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.graphics.Color
++
++private val Accent = Color(0xFFF50032)
++
++private val Dark = darkColorScheme(primary = Accent, background = Color(0xFF121212), surface = Color(0xFF1C1C1C))
++private val Light = lightColorScheme(primary = Accent)
++
++@Composable
++fun ComposerTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
++    MaterialTheme(colorScheme = if (dark) Dark else Light, content = content)
++}
+diff --git a/android/app/src/main/res/drawable/ic_launcher_background.xml b/android/app/src/main/res/drawable/ic_launcher_background.xml
+new file mode 100644
+index 0000000..b2c3414
+--- /dev/null
++++ b/android/app/src/main/res/drawable/ic_launcher_background.xml
+@@ -0,0 +1,5 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="108dp" android:height="108dp"
++    android:viewportWidth="108" android:viewportHeight="108">
++    <path android:fillColor="#F50032" android:pathData="M0,0h108v108h-108z" />
++</vector>
+diff --git a/android/app/src/main/res/drawable/ic_launcher_foreground.xml b/android/app/src/main/res/drawable/ic_launcher_foreground.xml
+new file mode 100644
+index 0000000..e4dc37d
+--- /dev/null
++++ b/android/app/src/main/res/drawable/ic_launcher_foreground.xml
+@@ -0,0 +1,6 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="108dp" android:height="108dp"
++    android:viewportWidth="108" android:viewportHeight="108">
++    <path android:fillColor="#FFFFFF"
++        android:pathData="M44,34 L44,66 A8,8 0 1,1 38,58.3 L38,34 Z M70,30 L70,62 A8,8 0 1,1 64,54.3 L64,34 L44,38 L44,32 Z" />
++</vector>
+diff --git a/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml b/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+new file mode 100644
+index 0000000..6b78462
+--- /dev/null
++++ b/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
++    <background android:drawable="@drawable/ic_launcher_background" />
++    <foreground android:drawable="@drawable/ic_launcher_foreground" />
++</adaptive-icon>
+diff --git a/android/app/src/main/res/values/strings.xml b/android/app/src/main/res/values/strings.xml
+new file mode 100644
+index 0000000..0ea4a99
+--- /dev/null
++++ b/android/app/src/main/res/values/strings.xml
+@@ -0,0 +1,3 @@
++<resources>
++    <string name="app_name">Composer</string>
++</resources>
+diff --git a/android/app/src/main/res/values/themes.xml b/android/app/src/main/res/values/themes.xml
+new file mode 100644
+index 0000000..03e5727
+--- /dev/null
++++ b/android/app/src/main/res/values/themes.xml
+@@ -0,0 +1,6 @@
++<resources>
++    <style name="Theme.Composer" parent="android:Theme.Material.NoActionBar">
++        <item name="android:statusBarColor">@android:color/transparent</item>
++        <item name="android:windowBackground">#121212</item>
++    </style>
++</resources>
+diff --git a/android/build.gradle.kts b/android/build.gradle.kts
+new file mode 100644
+index 0000000..1b4481a
+--- /dev/null
++++ b/android/build.gradle.kts
+@@ -0,0 +1,5 @@
++plugins {
++    id("com.android.application") version "8.7.3" apply false
++    id("org.jetbrains.kotlin.android") version "2.0.21" apply false
++    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
++}
+diff --git a/android/gradle.properties b/android/gradle.properties
+new file mode 100644
+index 0000000..094b6ed
+--- /dev/null
++++ b/android/gradle.properties
+@@ -0,0 +1,6 @@
++org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
++org.gradle.parallel=true
++org.gradle.caching=true
++android.useAndroidX=true
++android.nonTransitiveRClass=true
++kotlin.code.style=official
+diff --git a/android/settings.gradle.kts b/android/settings.gradle.kts
+new file mode 100644
+index 0000000..fb008e3
+--- /dev/null
++++ b/android/settings.gradle.kts
+@@ -0,0 +1,16 @@
++pluginManagement {
++    repositories {
++        google()
++        mavenCentral()
++        gradlePluginPortal()
++    }
++}
++dependencyResolutionManagement {
++    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
++    repositories {
++        google()
++        mavenCentral()
++    }
++}
++rootProject.name = "ComposerAndroid"
++include(":app")
