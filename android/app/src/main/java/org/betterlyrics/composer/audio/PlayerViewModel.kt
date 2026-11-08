@@ -114,6 +114,9 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun skip(deltaMs: Long) = seekTo(player.currentPosition + deltaMs)
 
+    /** Exact playback position right now, for stamping taps. */
+    fun currentSeconds(): Double = player.currentPosition / 1000.0
+
     fun pause() = player.pause()
 
     override fun onCleared() {

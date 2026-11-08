@@ -37,7 +37,7 @@ import org.betterlyrics.composer.project.ProjectViewModel
 enum class Step(val label: String, val icon: ImageVector, val todo: String) {
     Import("Import", Icons.Default.AudioFile, ""),
     Edit("Edit", Icons.Default.Edit, ""),
-    Sync("Sync", Icons.Default.Timer, "Tap along with the music to stamp each word."),
+    Sync("Sync", Icons.Default.Timer, ""),
     Export("Export", Icons.Default.Share, "")
 }
 
@@ -66,7 +66,7 @@ fun ComposerApp(player: PlayerViewModel = viewModel(), project: ProjectViewModel
             Step.Import -> ImportScreen(player, body)
             Step.Edit -> EditScreen(project, durationSec, body)
             Step.Export -> ExportScreen(project, durationSec, body)
-            Step.Sync -> Placeholder(step, body)
+            Step.Sync -> SyncScreen(project, player, body)
         }
     }
 }

@@ -15,12 +15,22 @@ import org.betterlyrics.composer.domain.Agent
 import org.betterlyrics.composer.domain.DEFAULT_AGENTS
 import org.betterlyrics.composer.domain.LyricLine
 import org.betterlyrics.composer.domain.ParseResult
+import org.betterlyrics.composer.domain.PendingEnd
 import org.betterlyrics.composer.domain.ProjectMetadata
+import org.betterlyrics.composer.domain.SyncCursor
+import org.betterlyrics.composer.domain.SyncMode
+import org.betterlyrics.composer.domain.SyncState
+import org.betterlyrics.composer.domain.applyEnd
+import org.betterlyrics.composer.domain.applySelect
+import org.betterlyrics.composer.domain.applyTap
 import org.betterlyrics.composer.domain.parseLyricsText
 
 private const val MAX_IMPORT_BYTES = 5 * 1024 * 1024
+private const val MAX_HISTORY = 100
 
-/** The song being edited: metadata, singers and lyric lines. Main thread only. */
+private class Snapshot(val state: SyncState, val timeSec: Double)
+
+/** The song being edited: metadata, singers, lyric lines and the sync cursor. Main thread only. */
 class ProjectViewModel(app: Application) : AndroidViewModel(app) {
 
     var metadata by mutableStateOf(ProjectMetadata()); private set
@@ -28,20 +38,32 @@ class ProjectViewModel(app: Application) : AndroidViewModel(app) {
     var lines by mutableStateOf<List<LyricLine>>(emptyList()); private set
     var message by mutableStateOf<String?>(null); private set
 
+    var syncMode by mutableStateOf(SyncMode.Line); private set
+    var cursor by mutableStateOf(SyncCursor()); private set
+    var canUndo by mutableStateOf(false); private set
+
+    private var pending: PendingEnd? = null
+    private val history = ArrayDeque<Snapshot>()
+
     fun dismissMessage() {
         message = null
     }
 
+    // -- Editing ---------------------------------------------------------------
+
     fun updateLineText(id: String, text: String) {
         lines = lines.map { if (it.id == id) it.withText(text) else it }
+        resetHistory()
     }
 
     fun deleteLine(id: String) {
         lines = lines.filterNot { it.id == id }
+        resetHistory()
     }
 
     fun addLine() {
         lines = lines + LyricLine(text = "")
+        resetHistory()
     }
 
     /** Replaces all lyrics from pasted text (plain, LRC or TTML). */
@@ -93,7 +115,82 @@ class ProjectViewModel(app: Application) : AndroidViewModel(app) {
             songwriters = m.songwriters.ifEmpty { metadata.songwriters },
             extra = m.extra.ifEmpty { metadata.extra },
         )
+        cursor = SyncCursor()
+        resetHistory()
         val skipped = if (result.issues.isEmpty()) "" else ", ${result.issues.size} skipped"
         message = "Imported ${result.lines.size} lines$skipped"
+    }
+
+    // -- Sync ------------------------------------------------------------------
+
+    fun setSyncMode(mode: SyncMode) {
+        if (mode == syncMode) return
+        syncMode = mode
+        cursor = SyncCursor(cursor.lineIndex, 0)
+        pending = null
+    }
+
+    fun selectLine(index: Int) = commit(applySelect(currentState(), index))
+
+    /** One tap at [timeSec]: stamps the next line or word and closes the previous end. */
+    fun tap(timeSec: Double) {
+        val before = currentState()
+        val after = applyTap(before, syncMode, timeSec)
+        if (after === before) return
+        push(before, timeSec)
+        commit(after)
+    }
+
+    /** Ends the previous line or word at [timeSec] without starting a new one. */
+    fun endLine(timeSec: Double) {
+        val before = currentState()
+        if (before.pending == null) return
+        push(before, timeSec)
+        commit(applyEnd(before, timeSec))
+    }
+
+    /** Reverts the last tap. Returns the time that tap was made at, so the caller can seek back. */
+    fun undo(): Double? {
+        val snapshot = history.removeLastOrNull() ?: return null
+        commit(snapshot.state)
+        canUndo = history.isNotEmpty()
+        return snapshot.timeSec
+    }
+
+    private fun currentState() = SyncState(lines, cursor, pending)
+
+    private fun commit(state: SyncState) {
+        lines = state.lines
+        cursor = state.cursor
+        pending = state.pending
+    }
+
+    private fun push(state: SyncState, timeSec: Double) {
+        history.addLast(Snapshot(state, timeSec))
+        if (history.size > MAX_HISTORY) history.removeFirst()
+        canUndo = true
+    }
+
+    private fun resetHistory() {
+        history.clear()
+        canUndo = false
+        pending = null
+    }
+
+    // -- Saving ----------------------------------------------------------------
+
+    fun saveText(uri: Uri, text: String) {
+        val resolver = getApplication<Application>().contentResolver
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                try {
+                    resolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                    true
+                } catch (e: Exception) {
+                    false
+                }
+            }
+            message = if (ok) "Saved." else "Could not save the file."
+        }
     }
 }
