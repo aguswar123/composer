@@ -6,11 +6,11 @@ on:
       patch:
         description: Patch file name (in the repo root)
         required: true
-        default: 0003-android-tap-sync-and-save.patch
+        default: 0004-android-fix-syncmode-clash.patch
       message:
         description: Commit message
         required: true
-        default: "Android: tap-to-sync (line and word), undo, save and share TTML"
+        default: "Android: fix SyncMode setter clash that broke the build"
 
 permissions:
   contents: write
