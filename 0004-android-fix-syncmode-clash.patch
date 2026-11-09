@@ -1,0 +1,32 @@
+diff --git a/android/app/src/main/java/org/betterlyrics/composer/project/ProjectViewModel.kt b/android/app/src/main/java/org/betterlyrics/composer/project/ProjectViewModel.kt
+index c15f86f..416c29b 100644
+--- a/android/app/src/main/java/org/betterlyrics/composer/project/ProjectViewModel.kt
++++ b/android/app/src/main/java/org/betterlyrics/composer/project/ProjectViewModel.kt
+@@ -123,7 +123,7 @@ class ProjectViewModel(app: Application) : AndroidViewModel(app) {
+ 
+     // -- Sync ------------------------------------------------------------------
+ 
+-    fun setSyncMode(mode: SyncMode) {
++    fun changeSyncMode(mode: SyncMode) {
+         if (mode == syncMode) return
+         syncMode = mode
+         cursor = SyncCursor(cursor.lineIndex, 0)
+diff --git a/android/app/src/main/java/org/betterlyrics/composer/ui/SyncScreen.kt b/android/app/src/main/java/org/betterlyrics/composer/ui/SyncScreen.kt
+index 21c46a2..9a6d402 100644
+--- a/android/app/src/main/java/org/betterlyrics/composer/ui/SyncScreen.kt
++++ b/android/app/src/main/java/org/betterlyrics/composer/ui/SyncScreen.kt
+@@ -84,12 +84,12 @@ fun SyncScreen(project: ProjectViewModel, player: PlayerViewModel, modifier: Mod
+         ) {
+             FilterChip(
+                 selected = project.syncMode == SyncMode.Line,
+-                onClick = { project.setSyncMode(SyncMode.Line) },
++                onClick = { project.changeSyncMode(SyncMode.Line) },
+                 label = { Text("Line") },
+             )
+             FilterChip(
+                 selected = project.syncMode == SyncMode.Word,
+-                onClick = { project.setSyncMode(SyncMode.Word) },
++                onClick = { project.changeSyncMode(SyncMode.Word) },
+                 label = { Text("Word") },
+             )
+             Text(
