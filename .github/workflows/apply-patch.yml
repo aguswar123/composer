@@ -6,11 +6,11 @@ on:
       patch:
         description: Patch file name (in the repo root)
         required: true
-        default: 0004-android-fix-syncmode-clash.patch
+        default: 0005-android-timeline-editor.patch
       message:
         description: Commit message
         required: true
-        default: "Android: fix SyncMode setter clash that broke the build"
+        default: "Android: timeline editor with draggable word and line boundaries"
 
 permissions:
   contents: write
