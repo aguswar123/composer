@@ -123,7 +123,7 @@ class ProjectViewModel(app: Application) : AndroidViewModel(app) {
 
     // -- Sync ------------------------------------------------------------------
 
-    fun setSyncMode(mode: SyncMode) {
+    fun changeSyncMode(mode: SyncMode) {
         if (mode == syncMode) return
         syncMode = mode
         cursor = SyncCursor(cursor.lineIndex, 0)

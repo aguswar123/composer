@@ -84,12 +84,12 @@ fun SyncScreen(project: ProjectViewModel, player: PlayerViewModel, modifier: Mod
         ) {
             FilterChip(
                 selected = project.syncMode == SyncMode.Line,
-                onClick = { project.setSyncMode(SyncMode.Line) },
+                onClick = { project.changeSyncMode(SyncMode.Line) },
                 label = { Text("Line") },
             )
             FilterChip(
                 selected = project.syncMode == SyncMode.Word,
-                onClick = { project.setSyncMode(SyncMode.Word) },
+                onClick = { project.changeSyncMode(SyncMode.Word) },
                 label = { Text("Word") },
             )
             Text(
