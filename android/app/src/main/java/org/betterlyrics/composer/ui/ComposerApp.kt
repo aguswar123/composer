@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +39,7 @@ enum class Step(val label: String, val icon: ImageVector, val todo: String) {
     Import("Import", Icons.Default.AudioFile, ""),
     Edit("Edit", Icons.Default.Edit, ""),
     Sync("Sync", Icons.Default.Timer, ""),
+    Timeline("Timeline", Icons.Default.Tune, ""),
     Export("Export", Icons.Default.Share, "")
 }
 
@@ -67,6 +69,7 @@ fun ComposerApp(player: PlayerViewModel = viewModel(), project: ProjectViewModel
             Step.Edit -> EditScreen(project, durationSec, body)
             Step.Export -> ExportScreen(project, durationSec, body)
             Step.Sync -> SyncScreen(project, player, body)
+            Step.Timeline -> TimelineScreen(project, player, body)
         }
     }
 }

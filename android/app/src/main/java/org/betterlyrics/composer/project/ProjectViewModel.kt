@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.betterlyrics.composer.domain.Agent
 import org.betterlyrics.composer.domain.DEFAULT_AGENTS
+import org.betterlyrics.composer.domain.EdgeSide
 import org.betterlyrics.composer.domain.LyricLine
 import org.betterlyrics.composer.domain.ParseResult
 import org.betterlyrics.composer.domain.PendingEnd
@@ -23,7 +25,9 @@ import org.betterlyrics.composer.domain.SyncState
 import org.betterlyrics.composer.domain.applyEnd
 import org.betterlyrics.composer.domain.applySelect
 import org.betterlyrics.composer.domain.applyTap
+import org.betterlyrics.composer.domain.edgeTime
 import org.betterlyrics.composer.domain.parseLyricsText
+import org.betterlyrics.composer.domain.withEdge
 
 private const val MAX_IMPORT_BYTES = 5 * 1024 * 1024
 private const val MAX_HISTORY = 100
@@ -41,6 +45,7 @@ class ProjectViewModel(app: Application) : AndroidViewModel(app) {
     var syncMode by mutableStateOf(SyncMode.Line); private set
     var cursor by mutableStateOf(SyncCursor()); private set
     var canUndo by mutableStateOf(false); private set
+    var timelineLine by mutableIntStateOf(0); private set
 
     private var pending: PendingEnd? = null
     private val history = ArrayDeque<Snapshot>()
@@ -175,6 +180,37 @@ class ProjectViewModel(app: Application) : AndroidViewModel(app) {
         history.clear()
         canUndo = false
         pending = null
+    }
+
+    // -- Timeline --------------------------------------------------------------
+
+    fun selectTimelineLine(index: Int) {
+        timelineLine = index.coerceIn(0, maxOf(0, lines.size - 1))
+    }
+
+    /** Where an edit of line [index] may go: after the previous timed line, before the next one. */
+    private fun limitsFor(index: Int, durationSec: Double): Pair<Double, Double> {
+        val lower = lines.take(index).asReversed().firstNotNullOfOrNull { it.effectiveBounds()?.end } ?: 0.0
+        val upper = lines.drop(index + 1).firstNotNullOfOrNull { it.effectiveBounds()?.begin }
+            ?: (if (durationSec > 0) durationSec else 3_600.0)
+        return lower to upper
+    }
+
+    /** Drags one word or line edge to [time] (seconds). */
+    fun moveEdge(lineId: String, wordIndex: Int?, side: EdgeSide, time: Double, durationSec: Double) {
+        val index = lines.indexOfFirst { it.id == lineId }
+        if (index < 0) return
+        val (lower, upper) = limitsFor(index, durationSec)
+        lines = lines.mapIndexed { i, line ->
+            if (i == index) line.withEdge(wordIndex, side, time, lower, upper) else line
+        }
+        resetHistory()
+    }
+
+    fun nudgeEdge(lineId: String, wordIndex: Int?, side: EdgeSide, deltaSec: Double, durationSec: Double) {
+        val line = lines.firstOrNull { it.id == lineId } ?: return
+        val current = line.edgeTime(wordIndex, side) ?: return
+        moveEdge(lineId, wordIndex, side, current + deltaSec, durationSec)
     }
 
     // -- Saving ----------------------------------------------------------------

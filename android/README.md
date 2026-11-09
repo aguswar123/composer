@@ -15,3 +15,4 @@ Download the APK from the run's Artifacts section.
 - Phase 1 (done): audio import via the system file picker, Media3/ExoPlayer playback, seek bar, ±5 s skip.
 - Phase 2 (done): lyrics model, TTML writer and parser, LRC/TXT import, Edit tab, TTML preview on the Export tab.
 - Phase 3 (done): tap-to-sync (line and word modes, undo, end-line), save/share/copy TTML.
+- Phase 4 (done): timeline editor with draggable word and line boundaries, zoom, nudge buttons.
